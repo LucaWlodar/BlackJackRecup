@@ -143,16 +143,60 @@ const GameBoard = () => {
 
         setDealerCards(newCards);
         setDealerRevealed(true);
+
+        determineWinner(newCards);
+    };
+
+    const determineWinner = (finalDealerCards) => {
+        const dealerScore = calculateScore(finalDealerCards).max;
+        const dealerHasBlackjack = dealerScore === 21 && finalDealerCards.length === 2;
+    
+        const players = playerStates.map(player => ({
+            ...player,
+            hands: player.hands.map(hand => {
+                const playerScore = calculateScore(hand.playerCards).max;
+                const playerHasBlackjack = playerScore === 21 && hand.playerCards.length === 2;
+    
+                let resultMessage = '';
+    
+                if (playerHasBlackjack && dealerHasBlackjack) {
+                    resultMessage = 'Empate. Ambos tienen Blackjack natural.';
+                } else if (playerHasBlackjack) {
+                    resultMessage = '¡Blackjack natural! ¡Has ganado!';
+                } else if (dealerHasBlackjack) {
+                    resultMessage = 'El dealer tiene Blackjack natural. ¡Has perdido!';
+                } else if (playerScore > 21 && dealerScore > 21) {
+                    resultMessage = 'Empate. Ambos se pasaron de 21.';
+                } else if (playerScore > 21) {
+                    resultMessage = 'Te pasaste de 21. ¡Has perdido!';
+                } else if (dealerScore > 21) {
+                    resultMessage = 'El dealer se pasó de 21. ¡Has ganado!';
+                } else if (playerScore === dealerScore) {
+                    resultMessage = 'Es un empate.';
+                } else if (playerScore > dealerScore) {
+                    resultMessage = '¡Has ganado!';
+                } else {
+                    resultMessage = 'El dealer ha ganado.';
+                }
+    
+                return { ...hand, message: resultMessage, gameOver: true };
+            }),
+        }));
+    
+        setPlayerStates(players);
     };
 
     const getDealerScore = () => {
         if (!dealerRevealed) {
             if (dealerCards.length > 0) {
-                const visibleCard = dealerCards[1];
+                const visibleCard = dealerCards[1]; 
+                if (visibleCard.value === 'ACE') {
+                    return '1 / 11'; 
+                }
                 const visibleScore = calculateScore([visibleCard]);
-                return `${visibleScore.min}`;
+                return `${visibleScore.min}`; 
             }
-            return '0';
+            return '0'; 
         }
         const { min, max } = calculateScore(dealerCards);
         return min !== max ? `${min} / ${max}` : `${min}`;
@@ -223,7 +267,7 @@ const GameBoard = () => {
             )}
 
             {dealerRevealed && (
-                <button className="reset-button" onClick={() => initializeGame(true)}>
+                <button className="reset-button" onClick={() => initializeGame(false)}>
                     Volver a Jugar
                 </button>
             )}
