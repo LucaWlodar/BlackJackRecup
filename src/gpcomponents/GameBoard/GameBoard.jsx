@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Hand from '../Hand/Hand';
-import Controls from '../Controls/Controls';
 import './GameBoard.css';
 
 const calculateScore = (cards) => {
+    if (!cards || cards.length === 0) return { min: 0, max: 0 };
+
     let total = 0;
     let aces = 0;
 
     cards.forEach(card => {
+        if (!card || !card.value) return;
+
         if (card.value === 'ACE') {
             aces += 1;
             total += 11;
@@ -19,171 +22,211 @@ const calculateScore = (cards) => {
         }
     });
 
-    
-    while (total > 21 && aces > 0) {
-        total -= 10; 
-        aces -= 1;
-    }
+    const minScore = total - (aces * 10);
+    const maxScore = total;
 
-    return total;
+    return { min: minScore, max: maxScore };
 };
 
 const GameBoard = () => {
     const [deckId, setDeckId] = useState(null);
-    const [playerHands, setPlayerHands] = useState([]); 
     const [dealerCards, setDealerCards] = useState([]);
     const [dealerRevealed, setDealerRevealed] = useState(false);
-    const [gameOver, setGameOver] = useState(false);
-    const [message, setMessage] = useState('');
-    const [deckCount, setDeckCount] = useState(1); 
-    const [allHandsStand, setAllHandsStand] = useState(false); 
+    const [numPlayers, setNumPlayers] = useState(1); // Número de jugadores
+    const [playerStates, setPlayerStates] = useState([]);
+    const [allHandsStand, setAllHandsStand] = useState(false);
 
     useEffect(() => {
         initializeGame();
-    }, [deckCount]); 
+    }, [numPlayers]);
 
-    const initializeGame = async () => {
-        const response = await axios.get(`https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=${deckCount}`);
-        const deckId = response.data.deck_id;
-        setDeckId(deckId);
+    const initializeGame = async (resetPlayers = false) => {
+        try {
+            if (resetPlayers) {
+                setNumPlayers(1); // Restablecer número de jugadores a 1
+            }
 
-        const drawResponse = await axios.get(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=${deckCount * 2 + 2}`);
-        const cards = drawResponse.data.cards;
+            const response = await axios.get(`https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1`);
+            const deckId = response.data.deck_id;
+            setDeckId(deckId);
 
-        
+            const dealerCardsResponse = await axios.get(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=2`);
+            setDealerCards(dealerCardsResponse.data.cards);
+
+            const players = Array.from({ length: resetPlayers ? 1 : numPlayers }, () => ({
+                deckCount: 1,
+                hands: [],
+                allHandsStand: false,
+            }));
+
+            setPlayerStates(players);
+            setDealerRevealed(false);
+            setAllHandsStand(false);
+        } catch (error) {
+            console.error('Error inicializando el juego:', error);
+        }
+    };
+
+    const handleNumPlayersChange = (event) => {
+        const value = parseInt(event.target.value, 10);
+        if (value >= 1 && value <= 4) {
+            setNumPlayers(value);
+        }
+    };
+
+    const handleDeckCountChange = (playerIndex, value) => {
+        const players = [...playerStates];
+        players[playerIndex].deckCount = parseInt(value, 10);
+        setPlayerStates(players);
+    };
+
+    const dealCardsForPlayer = async (playerIndex) => {
+        const { deckCount } = playerStates[playerIndex];
+        const response = await axios.get(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=${deckCount * 2}`);
+        const cards = response.data.cards;
+
         const hands = [];
         for (let i = 0; i < deckCount; i++) {
             hands.push({
                 playerCards: [cards[i * 2], cards[i * 2 + 1]],
-                dealerCards: [cards[i * 2 + 2], cards[i * 2 + 3]],
-                dealerRevealed: false,
+                stand: false,
                 gameOver: false,
                 message: '',
-                stand: false, 
             });
         }
 
-        setPlayerHands(hands);
-        setDealerCards([cards[deckCount * 2], cards[deckCount * 2 + 1]]);
-        setGameOver(false);
-        setDealerRevealed(false);
-        setMessage('');
-        setAllHandsStand(false); 
+        const players = [...playerStates];
+        players[playerIndex].hands = hands;
+        setPlayerStates(players);
     };
 
-    const handleDeckCountChange = (event) => {
-        setDeckCount(parseInt(event.target.value, 10));
-    };
-
-    const drawCard = async (index) => {
-        if (playerHands[index].gameOver || playerHands[index].stand) return;
-
+    const drawCard = async (playerIndex, handIndex) => {
         const response = await axios.get(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=1`);
         const newCard = response.data.cards[0];
-        const newHands = [...playerHands];
-        newHands[index].playerCards.push(newCard);
-        setPlayerHands(newHands);
+
+        const players = [...playerStates];
+        players[playerIndex].hands[handIndex].playerCards.push(newCard);
+        setPlayerStates(players);
     };
 
-    const stand = (index) => {
-        const newHands = [...playerHands];
-        newHands[index].stand = true;
+    const stand = (playerIndex, handIndex) => {
+        const players = [...playerStates];
+        players[playerIndex].hands[handIndex].stand = true;
 
-      
-        const allStand = newHands.every(hand => hand.stand);
-        setAllHandsStand(allStand);
+        const allHandsStand = players.every(player =>
+            player.hands.every(hand => hand.stand)
+        );
 
-        setPlayerHands(newHands);
+        setPlayerStates(players);
+        setAllHandsStand(allHandsStand);
     };
 
     const dealerPlay = async () => {
-        let dealerScore = calculateScore(dealerCards);
         let newCards = [...dealerCards];
+        let dealerScore = calculateScore(newCards);
+        let dealerMinScore = dealerScore.min;
+        let dealerMaxScore = dealerScore.max;
 
-        
-        while (dealerScore <= 16) {
+        while (dealerMinScore <= 16 || (dealerMaxScore === 17 && dealerMinScore !== dealerMaxScore)) {
             const response = await axios.get(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=1`);
             const newCard = response.data.cards[0];
             newCards.push(newCard);
+
             dealerScore = calculateScore(newCards);
+            dealerMinScore = dealerScore.min;
+            dealerMaxScore = dealerScore.max;
+
+            if (dealerMaxScore > 21) {
+                dealerMaxScore = dealerMinScore;
+            }
         }
 
         setDealerCards(newCards);
         setDealerRevealed(true);
-        determineWinner(newCards);
     };
 
-    const determineWinner = (finalDealerCards) => {
-        let newHands = [...playerHands];
-
-        newHands = newHands.map(hand => {
-            const playerScore = calculateScore(hand.playerCards);
-            const dealerScore = calculateScore(finalDealerCards);
-
-            let resultMessage = '';
-            if (playerScore > 21) {
-                resultMessage = 'Te pasaste de 21. ¡Has perdido!';
-            } else if (dealerScore > 21) {
-                resultMessage = 'El dealer se pasó de 21. ¡Has ganado!';
-            } else if (playerScore === dealerScore) {
-                resultMessage = 'Es un empate.';
-            } else if (playerScore > dealerScore) {
-                resultMessage = '¡Has ganado!';
-            } else {
-                resultMessage = 'El dealer ha ganado.';
+    const getDealerScore = () => {
+        if (!dealerRevealed) {
+            if (dealerCards.length > 0) {
+                const visibleCard = dealerCards[1];
+                const visibleScore = calculateScore([visibleCard]);
+                return `${visibleScore.min}`;
             }
-
-            return { ...hand, message: resultMessage, gameOver: true };
-        });
-
-        setPlayerHands(newHands);
-    };
-
-    const getScoreDisplay = (cards) => {
-        const total = calculateScore(cards);
-        return total > 21 ? 'Se pasó' : total; 
+            return '0';
+        }
+        const { min, max } = calculateScore(dealerCards);
+        return min !== max ? `${min} / ${max}` : `${min}`;
     };
 
     return (
         <div className="game-board">
-            
-            <div className="deck-count">
-                <label htmlFor="deck-count">Selecciona el número de barajas (1-8): </label>
-                <input
-                    type="number"
-                    id="deck-count"
-                    value={deckCount}
-                    onChange={handleDeckCountChange}
-                    min="1"
-                    max="8"
-                />
-                <button onClick={initializeGame}>Volver A Repartir</button>
+            <div className="dealer-section">
+                <h2>Dealer</h2>
+                {dealerCards.length > 0 && (
+                    <>
+                        <Hand cards={dealerCards} revealed={dealerRevealed} />
+                        <p>Puntaje del dealer: <strong>{getDealerScore()}</strong></p>
+                    </>
+                )}
             </div>
 
-            
-            <Hand cards={dealerCards} revealed={dealerRevealed} />
+            <div className="players-section">
+                <label htmlFor="num-players">Número de jugadores (1-4): </label>
+                <input
+                    type="number"
+                    id="num-players"
+                    value={numPlayers}
+                    onChange={handleNumPlayersChange}
+                    min="1"
+                    max="4"
+                />
+                {playerStates.map((player, playerIndex) => (
+                    <div key={playerIndex} className="player-section">
+                        <h3>Jugador {playerIndex + 1}</h3>
+                        <label>
+                            Cantidad de barajas:
+                            <input
+                                type="number"
+                                value={player.deckCount}
+                                min="1"
+                                max="8"
+                                onChange={(e) => handleDeckCountChange(playerIndex, e.target.value)}
+                            />
+                        </label>
+                        <button onClick={() => dealCardsForPlayer(playerIndex)}>Repartir Cartas</button>
 
-           
-            {playerHands.map((hand, index) => (
-                <div key={index} className="player-hand">
-                    <h3>Mano {index + 1}</h3>
-                    <Hand cards={hand.playerCards} revealed />
-                    <div className="controls">
-                        <button onClick={() => drawCard(index)} disabled={hand.gameOver || hand.stand}>Sacar carta</button>
-                        <button onClick={() => stand(index)} disabled={hand.gameOver || hand.stand}>Plantarse</button>
+                        {player.hands.map((hand, handIndex) => (
+                            <div key={handIndex} className="hand-section">
+                                <Hand cards={hand.playerCards} revealed />
+                                <p>Puntaje: {calculateScore(hand.playerCards).min}</p>
+                                <button
+                                    onClick={() => drawCard(playerIndex, handIndex)}
+                                    disabled={hand.stand || hand.gameOver}
+                                >
+                                    Sacar carta
+                                </button>
+                                <button
+                                    onClick={() => stand(playerIndex, handIndex)}
+                                    disabled={hand.stand || hand.gameOver}
+                                >
+                                    Plantarse
+                                </button>
+                                <p>{hand.message}</p>
+                            </div>
+                        ))}
                     </div>
-                    <p>{hand.message}</p>
-                    <p>Puntaje: {getScoreDisplay(hand.playerCards)}</p>
-                </div>
-            ))}
+                ))}
+            </div>
 
-           
             {allHandsStand && !dealerRevealed && (
-                <button onClick={dealerPlay}>Revelar cartas del dealer</button>
+                <button onClick={dealerPlay}>Revelar Cartas del Dealer</button>
             )}
 
-            
-            <p className="message">{message}</p>
+            {dealerRevealed && (
+                <button className="reset-button" onClick={() => initializeGame(true)}>
+                    Volver a Jugar
+                </button>
+            )}
         </div>
     );
 };

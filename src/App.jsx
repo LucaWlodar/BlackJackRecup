@@ -1,14 +1,18 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import GameBoard from './gpcomponents/GameBoard/GameBoard'
 import Header from './gpcomponents/Header/Header';
-import GameBoard from './gpcomponents/GameBoard/GameBoard';
-import './App.css';
+import BettingSection from './gpcomponents/BettingSection/BettingSection';
 
 const App = () => {
     return (
-        <div className="app">
+        <Router>
             <Header />
-            <GameBoard />
-        </div>
+            <Routes>
+                <Route path="/" element={<GameBoard />} />
+                <Route path="/bets" element={<BettingSection />} />
+            </Routes>
+        </Router>
     );
 };
 

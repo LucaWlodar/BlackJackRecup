@@ -1,0 +1,12 @@
+.betting-section {
+    background-image: url(../BettingSection/fotoapuesta.png); /* Ruta relativa al archivo CSS */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    text-align: center;
+}
