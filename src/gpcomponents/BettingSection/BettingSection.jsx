@@ -1,12 +1,12 @@
 import React from 'react';
 import './BettingSection.css';
-import background from './fotoapuesta.png'; // Importamos la imagen para evitar rutas absolutas en CSS
+import background from './fotoapuesta.png'; 
 
 const BettingSection = () => {
     return (
         <div 
             className="betting-section" 
-            style={{ backgroundImage: `url(${background})` }} // La imagen se aplica aquí dinámicamente
+            style={{ backgroundImage: `url(${background})` }} 
         >
             <center>
                 <h1>🚨🚨👮LAS APUESTAS SON ILEGALES👮🚨🚨</h1>

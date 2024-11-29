@@ -32,7 +32,7 @@ const GameBoard = () => {
     const [deckId, setDeckId] = useState(null);
     const [dealerCards, setDealerCards] = useState([]);
     const [dealerRevealed, setDealerRevealed] = useState(false);
-    const [numPlayers, setNumPlayers] = useState(1); // Número de jugadores
+    const [numPlayers, setNumPlayers] = useState(1); 
     const [playerStates, setPlayerStates] = useState([]);
     const [allHandsStand, setAllHandsStand] = useState(false);
 
@@ -43,7 +43,7 @@ const GameBoard = () => {
     const initializeGame = async (resetPlayers = false) => {
         try {
             if (resetPlayers) {
-                setNumPlayers(1); // Restablecer número de jugadores a 1
+                setNumPlayers(1); 
             }
 
             const response = await axios.get(`https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1`);
