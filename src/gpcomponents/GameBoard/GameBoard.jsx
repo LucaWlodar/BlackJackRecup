@@ -14,7 +14,7 @@ const calculateScore = (cards) => {
 
         if (card.value === 'ACE') {
             aces += 1;
-            total += 11;
+            total += 11; // Consideramos inicialmente los ases como 11
         } else if (['KING', 'QUEEN', 'JACK'].includes(card.value)) {
             total += 10;
         } else {
@@ -22,17 +22,20 @@ const calculateScore = (cards) => {
         }
     });
 
-    const minScore = total - (aces * 10);
-    const maxScore = total;
+    // Ajustamos los ases dinámicamente si el total excede 21
+    while (total > 21 && aces > 0) {
+        total -= 10; // Cambiamos un as de 11 a 1
+        aces -= 1;
+    }
 
-    return { min: minScore, max: maxScore };
+    return { min: total, max: total }; // Puntaje simplificado, siempre maximizando el resultado válido
 };
 
 const GameBoard = () => {
     const [deckId, setDeckId] = useState(null);
     const [dealerCards, setDealerCards] = useState([]);
     const [dealerRevealed, setDealerRevealed] = useState(false);
-    const [numPlayers, setNumPlayers] = useState(1); 
+    const [numPlayers, setNumPlayers] = useState(1);
     const [playerStates, setPlayerStates] = useState([]);
     const [allHandsStand, setAllHandsStand] = useState(false);
 
@@ -43,7 +46,7 @@ const GameBoard = () => {
     const initializeGame = async (resetPlayers = false) => {
         try {
             if (resetPlayers) {
-                setNumPlayers(1); 
+                setNumPlayers(1);
             }
 
             const response = await axios.get(`https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1`);
@@ -150,15 +153,15 @@ const GameBoard = () => {
     const determineWinner = (finalDealerCards) => {
         const dealerScore = calculateScore(finalDealerCards).max;
         const dealerHasBlackjack = dealerScore === 21 && finalDealerCards.length === 2;
-    
+
         const players = playerStates.map(player => ({
             ...player,
             hands: player.hands.map(hand => {
                 const playerScore = calculateScore(hand.playerCards).max;
                 const playerHasBlackjack = playerScore === 21 && hand.playerCards.length === 2;
-    
+
                 let resultMessage = '';
-    
+
                 if (playerHasBlackjack && dealerHasBlackjack) {
                     resultMessage = 'Empate. Ambos tienen Blackjack natural.';
                 } else if (playerHasBlackjack) {
@@ -178,25 +181,25 @@ const GameBoard = () => {
                 } else {
                     resultMessage = 'El dealer ha ganado.';
                 }
-    
+
                 return { ...hand, message: resultMessage, gameOver: true };
             }),
         }));
-    
+
         setPlayerStates(players);
     };
 
     const getDealerScore = () => {
         if (!dealerRevealed) {
             if (dealerCards.length > 0) {
-                const visibleCard = dealerCards[1]; 
+                const visibleCard = dealerCards[1]; // Segunda carta visible
                 if (visibleCard.value === 'ACE') {
-                    return '1 / 11'; 
+                    return '1 / 11'; // El as puede ser 1 o 11
                 }
                 const visibleScore = calculateScore([visibleCard]);
-                return `${visibleScore.min}`; 
+                return `${visibleScore.min}`; // Mostramos el puntaje de la carta visible
             }
-            return '0'; 
+            return '0'; // No hay cartas visibles
         }
         const { min, max } = calculateScore(dealerCards);
         return min !== max ? `${min} / ${max}` : `${min}`;
@@ -242,7 +245,7 @@ const GameBoard = () => {
                         {player.hands.map((hand, handIndex) => (
                             <div key={handIndex} className="hand-section">
                                 <Hand cards={hand.playerCards} revealed />
-                                <p>Puntaje: {calculateScore(hand.playerCards).min}</p>
+                                <p>Puntaje: {calculateScore(hand.playerCards).max}</p>
                                 <button
                                     onClick={() => drawCard(playerIndex, handIndex)}
                                     disabled={hand.stand || hand.gameOver}
