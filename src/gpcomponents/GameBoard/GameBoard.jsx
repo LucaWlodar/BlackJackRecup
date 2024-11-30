@@ -14,7 +14,7 @@ const calculateScore = (cards) => {
 
         if (card.value === 'ACE') {
             aces += 1;
-            total += 11; // Consideramos inicialmente los ases como 11
+            total += 11; 
         } else if (['KING', 'QUEEN', 'JACK'].includes(card.value)) {
             total += 10;
         } else {
@@ -22,13 +22,13 @@ const calculateScore = (cards) => {
         }
     });
 
-    // Ajustamos los ases dinámicamente si el total excede 21
+    
     while (total > 21 && aces > 0) {
-        total -= 10; // Cambiamos un as de 11 a 1
+        total -= 10; 
         aces -= 1;
     }
 
-    return { min: total, max: total }; // Puntaje simplificado, siempre maximizando el resultado válido
+    return { min: total, max: total }; 
 };
 
 const GameBoard = () => {
@@ -192,14 +192,14 @@ const GameBoard = () => {
     const getDealerScore = () => {
         if (!dealerRevealed) {
             if (dealerCards.length > 0) {
-                const visibleCard = dealerCards[1]; // Segunda carta visible
+                const visibleCard = dealerCards[1]; 
                 if (visibleCard.value === 'ACE') {
-                    return '1 / 11'; // El as puede ser 1 o 11
+                    return '1 / 11'; 
                 }
                 const visibleScore = calculateScore([visibleCard]);
-                return `${visibleScore.min}`; // Mostramos el puntaje de la carta visible
+                return `${visibleScore.min}`; 
             }
-            return '0'; // No hay cartas visibles
+            return '0'; 
         }
         const { min, max } = calculateScore(dealerCards);
         return min !== max ? `${min} / ${max}` : `${min}`;
